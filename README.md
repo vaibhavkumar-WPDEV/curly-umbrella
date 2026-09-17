@@ -43,9 +43,9 @@ python3 -m http.server 8000     # any static server works
 
 ## Deployment
 
-`.github/workflows/pages.yml` publishes the repository root to GitHub Pages on every push.
-`actions/configure-pages` runs with `enablement: true`, so the first successful run switches Pages on
-by itself — no manual repository settings step.
+GitHub Pages serves the site from the `gh-pages` branch. `.github/workflows/pages.yml` mirrors the
+site files onto that branch on every push to the working branch, and the Pages builder publishes the
+result — so a push is the whole deploy step.
 
 ## Adapting it to a real client
 

@@ -1,4 +1,8 @@
-name: Deploy to GitHub Pages
+name: Publish site to gh-pages
+
+# GitHub Pages serves this repo from the gh-pages branch (classic source).
+# This job mirrors the site files there on every push to the working branch,
+# and the Pages builder picks the change up automatically.
 
 on:
   push:
@@ -6,32 +10,38 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: publish-gh-pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # enablement: true turns Pages on for the repo if it is not already,
-      # so the first run of this workflow is all the setup that is needed.
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
+      - name: Mirror site files onto gh-pages
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
+          tmp="$(mktemp -d)"
+          cp -R index.html assets .nojekyll README.md "$tmp/"
 
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          git fetch origin gh-pages --depth=1
+          git checkout -B gh-pages origin/gh-pages
+          # Drop everything tracked, then lay the fresh copy down, so deletions
+          # in the source branch propagate to the published site.
+          git rm -rq --ignore-unmatch .
+          cp -R "$tmp"/. .
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "gh-pages already matches the source branch."
+            exit 0
+          fi
+          git commit -m "Publish site from ${GITHUB_SHA::7}"
+          git push origin gh-pages
